@@ -44,11 +44,15 @@ namespace GoogleCalendarSync
             });
         }
 
-        public void NewAppointment(DateTime start)
+        public void NewAppointment(DateTime start, DateTime end, string subject)
         {
             Event @event = new Event();
-
+            @event.Start = new EventDateTime();
+            @event.End = new EventDateTime();
+            
             @event.Start.DateTime = start;
+            @event.End.DateTime = end;
+            @event.Summary = subject;
 
             EventsResource.InsertRequest createRequest = service.Events.Insert(@event, "primary");
         }

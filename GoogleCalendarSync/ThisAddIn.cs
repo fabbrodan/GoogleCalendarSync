@@ -14,6 +14,9 @@ namespace GoogleCalendarSync
         public GoogleCalendarAPI api;
         public Outlook.Inspectors inspectors;
         public Outlook.AppointmentItem appointment;
+        DateTime _start;
+        DateTime _end;
+        string subject;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -30,14 +33,30 @@ namespace GoogleCalendarSync
             {
                 appointment = item;
                 appointment.AfterWrite += Appointment_AfterWrite;
+                appointment.PropertyChange += Appointment_PropertyChange;
             }
             
         }
 
+        private void Appointment_PropertyChange(string Name)
+        {
+            if (Name == "StartInStartTimeZone")
+            {
+                _start = appointment.Start;
+            }
+            if (Name == "EndInEndTimeZone")
+            {
+                _end = appointment.End;
+            }
+            if (Name == "Subject")
+            {
+                subject = appointment.Subject;
+            }
+        }
+
         private void Appointment_AfterWrite()
         {
-            DateTime _start = appointment.Start;
-            api.NewAppointment(_start);
+            api.NewAppointment(_start, _end, subject);
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
