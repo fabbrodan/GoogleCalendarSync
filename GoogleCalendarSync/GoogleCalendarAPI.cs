@@ -44,17 +44,38 @@ namespace GoogleCalendarSync
             });
         }
 
-        public void NewAppointment(DateTime start, DateTime end, string subject)
+        public void NewAppointment(DateTime start, DateTime end, string subject, string id)
         {
-            Event @event = new Event();
-            @event.Start = new EventDateTime();
-            @event.End = new EventDateTime();
-            
-            @event.Start.DateTime = start;
-            @event.End.DateTime = end;
-            @event.Summary = subject;
+            EventDateTime _start = new EventDateTime();
+            _start.DateTime = start;
+            EventDateTime _end = new EventDateTime();
+            _end.DateTime = end;
+            Event @event = new Event
+            {
+                Start = _start,
+                End = _end,
+                Summary = subject,
+                Id = id
+            };
 
             EventsResource.InsertRequest createRequest = service.Events.Insert(@event, "primary");
+            createRequest.Execute();
+            
+        }
+
+        public bool DeleteAppointment(string id)
+        {
+            EventsResource.DeleteRequest deleteRequest = service.Events.Delete("primary", id);
+            try
+            {
+                deleteRequest.Execute();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+
         }
     }
 }

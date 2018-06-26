@@ -6,24 +6,28 @@ using System.Text;
 using System.Xml.Linq;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Office = Microsoft.Office.Core;
+using System.Runtime.InteropServices;
 
 namespace GoogleCalendarSync
 {
     public partial class ThisAddIn
     {
-        public GoogleCalendarAPI api;
-        public Outlook.Inspectors inspectors;
-        public Outlook.AppointmentItem appointment;
+        private GoogleCalendarAPI api;
+        private Outlook.Inspectors inspectors;
+        private Outlook.AppointmentItem appointment;
         DateTime _start;
         DateTime _end;
-        string subject;
+        string _subject;
+        string _id;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             api = new GoogleCalendarAPI();
+
             inspectors = this.Application.Inspectors;
             inspectors.NewInspector +=
                 new Microsoft.Office.Interop.Outlook.InspectorsEvents_NewInspectorEventHandler(Inspectors_NewInspector);
+                
         }
 
         private void Inspectors_NewInspector(Outlook.Inspector Inspector)
@@ -32,31 +36,33 @@ namespace GoogleCalendarSync
             if (item != null)
             {
                 appointment = item;
-                appointment.AfterWrite += Appointment_AfterWrite;
-                appointment.PropertyChange += Appointment_PropertyChange;
+                appointment.Write += Appointment_Write;
+                appointment.BeforeDelete += Appointment_BeforeDelete;
             }
             
         }
 
-        private void Appointment_PropertyChange(string Name)
+        private void Appointment_BeforeDelete(object Item, ref bool Cancel)
         {
-            if (Name == "StartInStartTimeZone")
+            _id = appointment.GlobalAppointmentID.ToLower();
+            if (!api.DeleteAppointment(_id))
             {
-                _start = appointment.Start;
-            }
-            if (Name == "EndInEndTimeZone")
-            {
-                _end = appointment.End;
-            }
-            if (Name == "Subject")
-            {
-                subject = appointment.Subject;
+                Cancel = true;
             }
         }
 
-        private void Appointment_AfterWrite()
+        private void Appointment_Write(ref bool Cancel)
         {
-            api.NewAppointment(_start, _end, subject);
+            if (appointment.MeetingStatus == Outlook.OlMeetingStatus.olMeetingCanceled)
+            {
+                Cancel = true;
+            }
+            _start = appointment.Start;
+            _end = appointment.End;
+            _subject = appointment.Subject;
+            _id = appointment.GlobalAppointmentID.ToLower();
+            api.NewAppointment(_start, _end, _subject, _id);
+            Marshal.ReleaseComObject(appointment);
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
