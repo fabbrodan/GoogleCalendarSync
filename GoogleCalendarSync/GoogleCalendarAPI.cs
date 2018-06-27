@@ -63,6 +63,23 @@ namespace GoogleCalendarSync
             
         }
 
+        public void UpdateAppointment(string id, DateTime start, DateTime end, string subject)
+        {
+            EventDateTime _start = new EventDateTime();
+            _start.DateTime = start;
+            EventDateTime _end = new EventDateTime();
+            _end.DateTime = end;
+            Event @event = new Event
+            {
+                Start = _start,
+                End = _end,
+                Summary = subject
+            };
+
+            EventsResource.UpdateRequest updateRequest = service.Events.Update(@event, "primary", id);
+            updateRequest.Execute();
+        }
+
         public bool DeleteAppointment(string id)
         {
             EventsResource.DeleteRequest deleteRequest = service.Events.Delete("primary", id);

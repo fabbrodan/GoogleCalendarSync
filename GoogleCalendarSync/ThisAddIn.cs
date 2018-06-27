@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,7 @@ namespace GoogleCalendarSync
         private GoogleCalendarAPI api;
         private Outlook.Inspectors inspectors;
         private Outlook.AppointmentItem appointment;
+        private Outlook.Folder folder;
         DateTime _start;
         DateTime _end;
         string _subject;
@@ -27,7 +29,20 @@ namespace GoogleCalendarSync
             inspectors = this.Application.Inspectors;
             inspectors.NewInspector +=
                 new Microsoft.Office.Interop.Outlook.InspectorsEvents_NewInspectorEventHandler(Inspectors_NewInspector);
-                
+            folder = Application.Session.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderCalendar) as Outlook.Folder;
+        }
+
+        private Outlook.AppointmentItem GetAppointment(string id)
+        {
+            // fix this
+            string filter = "[GlobalAppointmentID] = '" + id +"'";
+            Debug.WriteLine(filter);
+
+            if (folder.Items.Find(filter) != null)
+            {
+                return folder.Items.Find(filter) as Outlook.AppointmentItem;
+            }
+            else return null;
         }
 
         private void Inspectors_NewInspector(Outlook.Inspector Inspector)
@@ -53,15 +68,26 @@ namespace GoogleCalendarSync
 
         private void Appointment_Write(ref bool Cancel)
         {
+            _start = appointment.Start;
+            _end = appointment.End;
+            _subject = appointment.Subject;
+            _id = appointment.GlobalAppointmentID;
+
             if (appointment.MeetingStatus == Outlook.OlMeetingStatus.olMeetingCanceled)
             {
                 Cancel = true;
             }
-            _start = appointment.Start;
-            _end = appointment.End;
-            _subject = appointment.Subject;
-            _id = appointment.GlobalAppointmentID.ToLower();
-            api.NewAppointment(_start, _end, _subject, _id);
+            if (GetAppointment(appointment.GlobalAppointmentID) != null)
+            {
+                _id = _id.ToLower();
+                api.UpdateAppointment(_id, _start, _end, _subject);
+            }
+            else
+            {
+                _id = _id.ToLower();
+                api.NewAppointment(_start, _end, _subject, _id);
+            }
+            
             Marshal.ReleaseComObject(appointment);
         }
 
