@@ -24,10 +24,19 @@ namespace GoogleCalendarSync
         {
             UserCredential credential;
 
-            using (var stream = new FileStream("client_secret.json", FileMode.Open, FileAccess.Read))
+            if (!Directory.Exists(Directory.GetCurrentDirectory() + "\\SyncSecret"))
             {
-                string credPath = System.Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                credPath += @"\.credentials\sync.json";
+                Directory.CreateDirectory(Directory.GetCurrentDirectory() + "\\SyncSecret");
+            }
+            if (!File.Exists(Directory.GetCurrentDirectory() + "\\SyncSecret\\client_secret.json"))
+            {
+                File.Copy(AppDomain.CurrentDomain.BaseDirectory + "\\client_secret.json", Directory.GetCurrentDirectory() + "\\SyncSecret\\client_secret.json");
+            }
+
+            string secretPath = Directory.GetCurrentDirectory() + "\\SyncSecret\\client_secret.json";
+            using (var stream = new FileStream(secretPath, FileMode.Open, FileAccess.Read))
+            {
+                string credPath = System.Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\.credentials\sync.json";
 
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.Load(stream).Secrets,
@@ -44,53 +53,28 @@ namespace GoogleCalendarSync
             });
         }
 
-        public void NewAppointment(DateTime start, DateTime end, string subject, string id)
+        public void NewAppointment(Event _event)
         {
-            EventDateTime _start = new EventDateTime();
-            _start.DateTime = start;
-            EventDateTime _end = new EventDateTime();
-            _end.DateTime = end;
-            Event @event = new Event
-            {
-                Start = _start,
-                End = _end,
-                Summary = subject,
-                Id = id
-            };
-
-            EventsResource.InsertRequest createRequest = service.Events.Insert(@event, "primary");
-            createRequest.Execute();
-            
+            EventsResource.InsertRequest createRequest = service.Events.Insert(_event, "primary");
+            createRequest.Execute();   
         }
 
-        public void UpdateAppointment(string id, DateTime start, DateTime end, string subject)
-        {
-            EventDateTime _start = new EventDateTime();
-            _start.DateTime = start;
-            EventDateTime _end = new EventDateTime();
-            _end.DateTime = end;
-            Event @event = new Event
-            {
-                Start = _start,
-                End = _end,
-                Summary = subject
-            };
-
-            EventsResource.UpdateRequest updateRequest = service.Events.Update(@event, "primary", id);
+        public void UpdateAppointment(string id, Event _event)
+        { 
+            EventsResource.UpdateRequest updateRequest = service.Events.Update(_event, "primary", id);
             updateRequest.Execute();
         }
 
-        public bool DeleteAppointment(string id)
+        public void DeleteAppointment(string id)
         {
             EventsResource.DeleteRequest deleteRequest = service.Events.Delete("primary", id);
             try
             {
                 deleteRequest.Execute();
-                return true;
             }
             catch
             {
-                return false;
+                
             }
 
         }

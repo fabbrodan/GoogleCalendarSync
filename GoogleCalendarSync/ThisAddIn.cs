@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using Google.Apis.Calendar.v3.Data;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Office = Microsoft.Office.Core;
 using System.Runtime.InteropServices;
@@ -21,6 +22,8 @@ namespace GoogleCalendarSync
         DateTime _end;
         string _subject;
         string _id;
+        string _body;
+        string _location;
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -35,7 +38,7 @@ namespace GoogleCalendarSync
         private Outlook.AppointmentItem GetAppointment(string id)
         {
             // fix this
-            string filter = "[GlobalAppointmentID] = '" + id +"'";
+            string filter = @"@SQL=""http://schemas.microsoft.com/mapi/string/{00020329-0000-0000-C000-000000000046}/ID"" = '" + id + "'";
             Debug.WriteLine(filter);
 
             if (folder.Items.Find(filter) != null)
@@ -60,32 +63,39 @@ namespace GoogleCalendarSync
         private void Appointment_BeforeDelete(object Item, ref bool Cancel)
         {
             _id = appointment.GlobalAppointmentID.ToLower();
-            if (!api.DeleteAppointment(_id))
-            {
-                Cancel = true;
-            }
+            api.DeleteAppointment(_id);
         }
 
         private void Appointment_Write(ref bool Cancel)
         {
-            _start = appointment.Start;
-            _end = appointment.End;
-            _subject = appointment.Subject;
-            _id = appointment.GlobalAppointmentID;
+            EventDateTime start = new EventDateTime();
+            EventDateTime end = new EventDateTime();
+            start.DateTime = appointment.Start;
+            end.DateTime = appointment.End;
+
+            Event _event = new Event
+            {
+                Start = start,
+                End = end,
+                Summary = appointment.Subject,
+                Location = appointment.Location,
+                Description = appointment.Body,
+                Id = appointment.GlobalAppointmentID.ToLower()
+            };
+            appointment.ItemProperties.Add("ID", Outlook.OlUserPropertyType.olText);
+            appointment.ItemProperties["ID"].Value = _id;
 
             if (appointment.MeetingStatus == Outlook.OlMeetingStatus.olMeetingCanceled)
             {
                 Cancel = true;
             }
-            if (GetAppointment(appointment.GlobalAppointmentID) != null)
+            if (GetAppointment(appointment.ItemProperties["ID"].Value) != null)
             {
-                _id = _id.ToLower();
-                api.UpdateAppointment(_id, _start, _end, _subject);
+                api.UpdateAppointment(_event.Id, _event);
             }
             else
             {
-                _id = _id.ToLower();
-                api.NewAppointment(_start, _end, _subject, _id);
+                api.NewAppointment(_event);
             }
             
             Marshal.ReleaseComObject(appointment);
